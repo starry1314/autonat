@@ -32,13 +32,15 @@ sed -i 's/\r$//' "$RULE_FILE"
 pkill -f 'socat TCP-LISTEN'
 pkill -f 'socat UDP-LISTEN'
 
-echo "[INFO] 套用新轉發規則..."
+echo "[INFO] 開始端口轉發..." >> /opt/port_forward.log
+
 while read -r port host; do
     [[ -z "$port" || -z "$host" || "$port" =~ ^# ]] && continue
-    echo "[FORWARD] $port -> $host:$port"
-    nohup socat TCP-LISTEN:$port,reuseaddr,fork TCP:$host:$port >/dev/null 2>&1 &
-    nohup socat UDP-LISTEN:$port,reuseaddr,fork UDP:$host:$port >/dev/null 2>&1 &
+    echo "[INFO] 正在轉發端口 $port 到 $host" >> /opt/port_forward.log
+    nohup socat TCP-LISTEN:$port,reuseaddr,fork TCP:$host:$port >> /opt/port_forward.log 2>&1 &
+    nohup socat UDP-LISTEN:$port,reuseaddr,fork UDP:$host:$port >> /opt/port_forward.log 2>&1 &
 done < "$RULE_FILE"
+
 EOF
 
 chmod +x /opt/port_forward.sh
@@ -51,7 +53,8 @@ After=network.target
 
 [Service]
 ExecStart=/opt/port_forward.sh
-Restart=always
+Restart=on-failure
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
